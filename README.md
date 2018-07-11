@@ -34,6 +34,10 @@ func main() {
 - `template` 如果你觉得我写的html不是很好看或者有其他的需要，你可以复写默认的html。
 - `validDownload` 默认可以打开的文件类型
 
+### 截图
+
+[在这里](https://github.com/zmisgod/goTool/tree/master/fileServer)
+
 ## contact me
 
 [@zmisgod](https://weibo.com/zmisgod)
