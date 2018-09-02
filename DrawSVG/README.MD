@@ -6,22 +6,18 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/zmisgod/goTool/drawsvg"
 )
 
 func main() {
-	svg, err := drawsvg.Create()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(0)
-	}
+	svg := drawsvg.Create()
+	svg.SetCircle(2, "#42526e", "transparent")
 
 	var path drawsvg.Path
 	path.Fill = "transparent"
 	path.Stroke = "blue"
-	path.StrokeWidth = 5
+	path.StrokeWidth = 2
 	path.FillOpacity = "0.4"
 	path.Aid = "121"
 	path.Alt = "121212"
@@ -30,15 +26,19 @@ func main() {
 		if i == 0 {
 			ipath.Lat = "100"
 			ipath.Long = "105"
+			ipath.ID = 11111
+			ipath.Name = "station1"
 		} else if i == 1 {
 			ipath.Lat = "120"
 			ipath.Long = "125"
 			ipath.Directive = "wheel"
-			ipath.WheelLa = "130"
-			ipath.WheelLong = "235"
+			ipath.ID = 222222
+			ipath.Name = "station2"
 		} else if i == 2 {
-			ipath.Lat = "80"
-			ipath.Long = "76"
+			ipath.Lat = "150"
+			ipath.Long = "90"
+			ipath.ID = 33333
+			ipath.Name = "station3"
 		}
 		path.PathInfo = append(path.PathInfo, ipath)
 	}
@@ -47,3 +47,15 @@ func main() {
 	fmt.Println(content)
 }
 ```
+
+## result
+
+[svg file](https://github.com/zmisgod/goTool/blob/master/img/drawsvg/1.svg)
+
+[screenshot](https://github.com/zmisgod/goTool/blob/master/img/drawsvg/1.jpg)
+
+## contact me
+
+[@zmisgod](https://weibo.com/zmisgod)
+
+[zmis.me](https://zmis.me)
