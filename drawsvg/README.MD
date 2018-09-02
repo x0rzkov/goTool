@@ -49,10 +49,10 @@ func main() {
 ```
 
 ## result
+<img src="https://github.com/zmisgod/goTool/blob/master/img/drawsvg/1.svg">
 
-[svg file](https://github.com/zmisgod/goTool/blob/master/img/drawsvg/1.svg)
 
-[screenshot](https://github.com/zmisgod/goTool/blob/master/img/drawsvg/1.jpg)
+<img src="https://github.com/zmisgod/goTool/blob/master/img/drawsvg/1.jpg">
 
 ## contact me
 
