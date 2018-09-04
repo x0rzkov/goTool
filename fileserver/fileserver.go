@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+var htmlTitle = "ListDir 文件管理系统"
+
 //ListDir struct
 type ListDir struct {
 	BasePath      string
@@ -27,18 +29,13 @@ type ListDir struct {
 
 //Create 创建listDir
 func Create(port int, basePath, host, showType, templatePath string, validDownload []string) *ListDir {
-	absPath := os.Getenv("GOPATH") + "/src/github.com/zmisgod/goTool/fileServer"
-	if templatePath == "" {
-		templatePath = absPath + "/listDir.html"
-	}
-
 	h := ListDir{
 		BasePath:      basePath,
 		Host:          host,
 		Port:          port,
 		ShowType:      showType,
 		TemplatePath:  templatePath,
-		absPath:       absPath,
+		absPath:       os.Getenv("GOPATH") + "/src/github.com/zmisgod/goTool/fileServer",
 		ValidDownload: validDownload,
 		temBasePath:   basePath,
 	}
@@ -69,6 +66,7 @@ func (h *ListDir) ShowList() (map[string]interface{}, error) {
 			}
 		}
 	}
+	rows["ShowNextPage"] = int(len(chunk)) == h.PageSize
 	rows["Dir"] = dir
 	rows["File"] = files
 	return rows, nil
@@ -171,8 +169,17 @@ func (h *ListDir) showJSON(w http.ResponseWriter) {
 
 //showTemplate 显示模板
 func (h *ListDir) showTemplate(w http.ResponseWriter, requestPath string) {
-	var tmp *template.Template
-	res, err := tmp.ParseFiles(h.TemplatePath)
+	var (
+		tmp *template.Template
+		err error
+		res *template.Template
+	)
+	if h.TemplatePath == "" {
+		tmp = template.New("list")
+		res, err = tmp.Parse(listTemplate)
+	} else {
+		res, err = tmp.ParseFiles(h.TemplatePath)
+	}
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -186,6 +193,8 @@ func (h *ListDir) showTemplate(w http.ResponseWriter, requestPath string) {
 		data["Page"] = h.Page
 		data["Npage"] = h.Page + 1
 		data["Ppage"] = h.Page - 1
+		data["Title"] = htmlTitle
+		data["PageSize"] = h.PageSize
 		err = res.Execute(w, data)
 		if err != nil {
 			fmt.Println(err)
@@ -195,12 +204,15 @@ func (h *ListDir) showTemplate(w http.ResponseWriter, requestPath string) {
 
 //NotFound 显示模板
 func (h *ListDir) NotFound(w http.ResponseWriter, req *http.Request) {
-	var tmp *template.Template
-	res, err := tmp.ParseFiles(h.absPath + "/404.html")
+	tmp := template.New("notfound")
+	res, err := tmp.Parse(notfoundTemplate)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		err = res.Execute(w, "oops")
+		data := make(map[string]string)
+		data["Title"] = htmlTitle
+
+		err = res.Execute(w, data)
 		if err != nil {
 			fmt.Println(err)
 		}
