@@ -79,10 +79,14 @@ type SVG struct {
 //Create 创建一个SVG
 func Create() *SVG {
 	var svg SVG
-	svg.Canvas.reSize = 300
 	svg.Canvas.longResize = 18
 	svg.Canvas.laResize = 70
 	return &svg
+}
+
+//SetResize 设置resize
+func (svg *SVG) SetResize(resize int) {
+	svg.Canvas.reSize = resize
 }
 
 //SetCircle 设置circle形状
@@ -134,9 +138,11 @@ func (svg *SVG) SetPath(path Path) {
 //Draw 画操作
 func (svg *SVG) Draw() string {
 	for index, path := range svg.pathLists {
+		content := ""
 		//画线段
 		path.DrawSVG(svg)
-		content := path.String()
+
+		content = path.String()
 		if len(path.PathInfo) > 0 {
 			for _, v := range path.PathInfo {
 				longStr, latiStr := svg.dataConversion(v.Lat, v.Long)
@@ -145,6 +151,7 @@ func (svg *SVG) Draw() string {
 		}
 		svg.pathLists[index].g = "<g>" + content + "</g>"
 	}
+
 	svg.Canvas.viewBox.widthTwo += 100
 	svg.Canvas.viewBox.heightTwo += 100
 	return svg.String()
@@ -154,26 +161,28 @@ func (svg *SVG) Draw() string {
 func (path *Path) DrawSVG(svg *SVG) {
 	pathInfoCount := len(path.PathInfo)
 	if pathInfoCount > 0 {
-		for i := 0; i < path.MaxGroup; i++ {
-			pathStr := ""
-			for k, v := range path.PathInfo {
-				prefix := "L "
-				if k == 0 {
-					prefix = "M"
-				}
-				if v.Directive == 1 {
-					prefix = "Q "
-				}
-				longStr, latiStr := svg.dataConversion(v.Lat, v.Long)
-				pathStr += prefix + longStr + " " + latiStr + " "
-
-				if v.Directive == 1 && k+1 < pathInfoCount {
-					longStr, latiStr := svg.dataConversion(path.PathInfo[k+1].Lat, path.PathInfo[k+1].Long)
-					pathStr += longStr + " " + latiStr + " "
-				}
+		pathStr := ""
+		for k, v := range path.PathInfo {
+			prefix := "L "
+			if k == 0 {
+				prefix = "M"
 			}
-			path.d = append(path.d, pathStr)
+			if v.Directive == 1 {
+				prefix = "Q "
+			}
+			pathStr += prefix
+
+			if v.Directive == 1 && k >= 1 {
+				centerPointLa := path.PathInfo[k-1].Long
+				centerPointLo := v.Lat
+				longStr, latiStr := svg.dataConversion(centerPointLa, centerPointLo)
+				pathStr += longStr + " " + latiStr + " "
+			}
+
+			longStr, latiStr := svg.dataConversion(v.Lat, v.Long)
+			pathStr += longStr + " " + latiStr + " "
 		}
+		path.d = append(path.d, pathStr)
 	}
 }
 
@@ -215,7 +224,7 @@ func (svg *SVG) String() string {
 			content += path.g
 		}
 	}
-	return fmt.Sprintf("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"%s\" version=\"1.1\"  width=\"100%%\" height=\"100%%\"><style>svg{ transform: scale(1, -1);}</style>%s</svg>", svg.Canvas.viewBox.String(), content)
+	return fmt.Sprintf("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"%s\" version=\"1.1\"  width=\"100%%\" height=\"100%%\">%s</svg>", svg.Canvas.viewBox.String(), content)
 }
 
 //String circle
