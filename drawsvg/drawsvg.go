@@ -1,6 +1,7 @@
 package drawsvg
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 )
@@ -23,14 +24,70 @@ type viewBox struct {
 
 //Circle 画圆点
 type circle struct {
-	radius int
-	stroke string
-	fill   string
+	radius      int
+	stroke      string
+	fill        string
+	strokeWidth int
+}
+
+//path指令，如果不传则默认直线
+var directive = []int{
+	0, //直线
+	1, //曲线
+}
+
+//IPath IPath
+type IPath struct {
+	Group int //0 1 2
+	Long  string
+	Lat   string
+	ID    int
+	Name  string
+
+	//下面仅对PATH有效
+	Directive int //指令
+}
+
+//Path 路径
+type Path struct {
+	MaxGroup    int //最大的Group是多少
+	PathInfo    []IPath
+	d           []string
+	g           string
+	Fill        string
+	Stroke      string
+	StrokeWidth int    `json:"stroke-width"`
+	FillOpacity string `json:"fill-opacity"`
+	Aid         string //额外信息1
+	Alt         string //额外信息2
+}
+
+//Output 输出
+type Output struct {
+	Name   string
+	Floder string
+}
+
+//SVG svg数据结构
+type SVG struct {
+	Canvas    Canvas `json:"canvas"` //svg画布与基础参数
+	circle    circle //画点
+	Output    Output `json:"output"` //输出
+	pathLists []Path
+}
+
+//Create 创建一个SVG
+func Create() *SVG {
+	var svg SVG
+	svg.Canvas.reSize = 300
+	svg.Canvas.longResize = 18
+	svg.Canvas.laResize = 70
+	return &svg
 }
 
 //SetCircle 设置circle形状
-func (svg *SVG) SetCircle(radius int, stroke, fill string) {
-	if radius < 0 {
+func (svg *SVG) SetCircle(radius, strokeWidth int, stroke, fill string) {
+	if radius <= 0 {
 		svg.circle.radius = 1
 	} else {
 		svg.circle.radius = radius
@@ -45,170 +102,79 @@ func (svg *SVG) SetCircle(radius int, stroke, fill string) {
 	} else {
 		svg.circle.fill = fill
 	}
+	if strokeWidth <= 0 {
+		svg.circle.strokeWidth = 1
+	} else {
+		svg.circle.strokeWidth = strokeWidth
+	}
 }
 
-//PolyLine 画直线
-type PolyLine struct {
-	PathInfo    []IPath
-	points      string
-	Fill        string
-	Stroke      string
-	StrokeWidth int    `json:"stroke-width"`
-	FillOpacity string `json:"fill-opacity"`
-	Aid         string //额外信息1
-	Alt         string //额外信息2
+//SetOutputFileName 设置output文件名称
+func (svg *SVG) SetOutputFileName(floder, name string) {
+	svg.Output.Name = name
+	svg.Output.Floder = floder
 }
 
-//path指令，如果不传则默认直线
-var directive = []string{
-	"line",  //直线
-	"wheel", //带半圆
+//beforeDraw 画图前检查
+func (svg *SVG) beforeDraw() error {
+	if svg.Output.Floder == "" {
+		return errors.New("please set the output floder first")
+	}
+	if svg.Output.Name == "" {
+		svg.Output.Name = "zmis.me.svg"
+	}
+	return nil
 }
 
-//IPath IPath
-type IPath struct {
-	Long string
-	Lat  string
-	ID   int
-	Name string
-
-	//下面仅对PATH有效
-	Directive string //指令
-}
-
-//Path 路径
-type Path struct {
-	PathInfo    []IPath
-	d           string
-	Fill        string
-	Stroke      string
-	StrokeWidth int    `json:"stroke-width"`
-	FillOpacity string `json:"fill-opacity"`
-	Aid         string //额外信息1
-	Alt         string //额外信息2
-}
-
-//Output 输出
-type Output struct {
-	Floder   string
-	FileName string
-}
-
-//SVG svg数据结构
-type SVG struct {
-	Canvas   Canvas   `json:"canvas"` //svg画布与基础参数
-	circle   circle   //画点
-	PolyLine PolyLine `json:"polyLine"` //画线
-	Path     Path     `json:"path"`     //画线段
-	Output   Output   `json:"output"`   //输出
-}
-
-//Create 创建一个SVG
-func Create() *SVG {
-	var svg SVG
-	svg.Canvas.reSize = 1
-	return &svg
-}
-
-//SetPathList 设置path
-func (svg *SVG) SetPathList(pathLists []IPath) bool {
-	svg.Path.PathInfo = pathLists
-	return true
-}
-
-//SetPolyList 设置polyList
-func (svg *SVG) SetPolyList(polyLine []IPath) bool {
-	svg.PolyLine.PathInfo = polyLine
-	return true
+//SetPath 设置path
+func (svg *SVG) SetPath(path Path) {
+	svg.pathLists = append(svg.pathLists, path)
 }
 
 //Draw 画操作
 func (svg *SVG) Draw() string {
-	//画线段
-	svg.DrawSVG()
-
-	content := ""
-	if svg.Path.d != "" {
-		content += svg.Path.String()
-	}
-	if svg.PolyLine.points != "" {
-		content += svg.PolyLine.String()
-	}
-	if len(svg.Path.PathInfo) > 0 {
-		for _, v := range svg.Path.PathInfo {
-			if v.Directive != "wheel" {
+	for index, path := range svg.pathLists {
+		//画线段
+		path.DrawSVG(svg)
+		content := path.String()
+		if len(path.PathInfo) > 0 {
+			for _, v := range path.PathInfo {
 				longStr, latiStr := svg.dataConversion(v.Lat, v.Long)
 				content += svg.circle.String(latiStr, longStr, v.Name, v.ID)
 			}
 		}
+		svg.pathLists[index].g = "<g>" + content + "</g>"
 	}
 	svg.Canvas.viewBox.widthTwo += 100
 	svg.Canvas.viewBox.heightTwo += 100
-	return svg.String(content)
+	return svg.String()
 }
 
-func (c *viewBox) String() string {
-	w1 := strconv.Itoa(c.widthOne)
-	h1 := strconv.Itoa(c.heightOne)
-	w2 := strconv.Itoa(c.widthTwo)
-	h2 := strconv.Itoa(c.heightTwo)
-	return w1 + "," + h1 + "," + w2 + "," + h2
-}
-
-func (c *circle) String(long, la, name string, id int) string {
-	return fmt.Sprintf("<circle cx=\"%s\" cy=\"%s\" r=\"%d\" stroke=\"%s\" fill=\"%s\" alt=\"%s\" aid=\"%d\" />", la, long, c.radius, c.stroke, c.fill, name, id)
-}
-
-func (c *PolyLine) String() string {
-	return fmt.Sprintf("<polyline points=\"%s\" stroke=\"%s\" fill=\"%s\" stroke-width=\"%d\" fill-opacity=\"%s\" alt=\"%s\" aid=\"%s\" />", c.points, c.Stroke, c.Fill, c.StrokeWidth, c.FillOpacity, c.Alt, c.Aid)
-}
-
-//DrawSVG 画D
-func (svg *SVG) DrawSVG() {
-	pathInfoCount := len(svg.Path.PathInfo)
+//DrawSVG 画d
+func (path *Path) DrawSVG(svg *SVG) {
+	pathInfoCount := len(path.PathInfo)
 	if pathInfoCount > 0 {
-		path := ""
-		for k, v := range svg.Path.PathInfo {
-			prefix := "L "
-			if k == 0 {
-				prefix = "M"
-			}
-			if v.Directive == "wheel" {
-				prefix = "Q "
-			}
-			longStr, latiStr := svg.dataConversion(v.Lat, v.Long)
-			path += prefix + longStr + " " + latiStr + " "
+		for i := 0; i < path.MaxGroup; i++ {
+			pathStr := ""
+			for k, v := range path.PathInfo {
+				prefix := "L "
+				if k == 0 {
+					prefix = "M"
+				}
+				if v.Directive == 1 {
+					prefix = "Q "
+				}
+				longStr, latiStr := svg.dataConversion(v.Lat, v.Long)
+				pathStr += prefix + longStr + " " + latiStr + " "
 
-			if v.Directive == "wheel" && k+1 <= pathInfoCount {
-				longStr, latiStr := svg.dataConversion(svg.Path.PathInfo[k+1].Lat, svg.Path.PathInfo[k+1].Long)
-				path += longStr + " " + latiStr + " "
+				if v.Directive == 1 && k+1 < pathInfoCount {
+					longStr, latiStr := svg.dataConversion(path.PathInfo[k+1].Lat, path.PathInfo[k+1].Long)
+					pathStr += longStr + " " + latiStr + " "
+				}
 			}
+			path.d = append(path.d, pathStr)
 		}
-		svg.Path.d = path
 	}
-
-	if len(svg.PolyLine.PathInfo) > 0 {
-		points := ""
-		for k, v := range svg.PolyLine.PathInfo {
-			prefix := ", "
-			if k == 0 {
-				prefix = ""
-			}
-			longStr, latiStr := svg.dataConversion(v.Lat, v.Long)
-
-			points += prefix + longStr + " " + latiStr + " "
-		}
-		svg.PolyLine.points = points
-	}
-}
-
-func (c *Path) String() string {
-	return fmt.Sprintf("<path d=\"%s\" stroke=\"%s\" fill=\"%s\" stroke-width=\"%d\" fill-opacity=\"%s\" alt=\"%s\" aid=\"%s\" />", c.d, c.Stroke, c.Fill, c.StrokeWidth, c.FillOpacity, c.Alt, c.Aid)
-}
-
-//String svg
-func (svg *SVG) String(content string) string {
-	return fmt.Sprintf("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"%s\" version=\"1.1\"  width=\"100%%\" height=\"100%%\">%s</svg>", svg.Canvas.viewBox.String(), content)
 }
 
 //dataConversion 数据转换
@@ -228,4 +194,40 @@ func (svg *SVG) dataConversion(data1, data2 string) (string, string) {
 	str1 := strconv.Itoa(res1)
 	str2 := strconv.Itoa(res2)
 	return str1, str2
+}
+
+//String path
+func (path *Path) String() string {
+	content := ""
+	if len(path.d) > 0 {
+		for _, d := range path.d {
+			content += fmt.Sprintf("<path d=\"%s\" stroke=\"%s\" fill=\"%s\" stroke-width=\"%d\" fill-opacity=\"%s\" alt=\"%s\" aid=\"%s\" />", d, path.Stroke, path.Fill, path.StrokeWidth, path.FillOpacity, path.Alt, path.Aid)
+		}
+	}
+	return content
+}
+
+//String svg
+func (svg *SVG) String() string {
+	content := ""
+	if len(svg.pathLists) > 0 {
+		for _, path := range svg.pathLists {
+			content += path.g
+		}
+	}
+	return fmt.Sprintf("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"%s\" version=\"1.1\"  width=\"100%%\" height=\"100%%\"><style>svg{ transform: scale(1, -1);}</style>%s</svg>", svg.Canvas.viewBox.String(), content)
+}
+
+//String circle
+func (c *circle) String(long, la, name string, id int) string {
+	return fmt.Sprintf("<circle cx=\"%s\" cy=\"%s\" r=\"%d\" stroke=\"%s\" fill=\"%s\" alt=\"%s\" aid=\"%d\" />", la, long, c.radius, c.stroke, c.fill, name, id)
+}
+
+//String viewBox
+func (c *viewBox) String() string {
+	w1 := strconv.Itoa(c.widthOne)
+	h1 := strconv.Itoa(c.heightOne)
+	w2 := strconv.Itoa(c.widthTwo)
+	h2 := strconv.Itoa(c.heightTwo)
+	return w1 + "," + h1 + "," + w2 + "," + h2
 }
