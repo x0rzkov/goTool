@@ -8,11 +8,11 @@ import (
 //FetchOnline 从远程下载
 type FetchOnline struct {
 	TargetURL      string
-	DownloadFloder string
+	DownloadFolder string
 }
 
-//SetDownloadFloder 设置下载目录
-func (t *FetchOnline) SetDownloadFloder(path string) {
+//SetDownloadFolder 设置下载目录
+func (t *FetchOnline) SetDownloadFolder(path string) {
 
 }
 
@@ -21,19 +21,19 @@ func (t *FetchOnline) StartServer() {
 
 }
 
-//CheckFloder 检查文件夹是否存在
-func (t *FetchOnline) CheckFloder() (bool, error) {
-	checkFloderNotExists, err := checkPathIsNotExists(t.DownloadFloder)
+//CheckFolder 检查文件夹是否存在
+func (t *FetchOnline) CheckFolder() (bool, error) {
+	checkFolderNotExists, err := checkPathIsNotExists(t.DownloadFolder)
 	if err != nil {
 		fmt.Println(err)
 		return false, err
 	}
-	if checkFloderNotExists {
-		err := os.MkdirAll(t.DownloadFloder, 0777)
+	if checkFolderNotExists {
+		err := os.MkdirAll(t.DownloadFolder, 0777)
 		if err != nil {
 			return false, err
 		}
-		fmt.Printf("create floder %s successful\n", t.DownloadFloder)
+		fmt.Printf("create floder %s successful\n", t.DownloadFolder)
 		return true, nil
 	}
 	return false, err
